@@ -1,0 +1,19 @@
+{
+  "name": "comdirect",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Working with the comdirect rest api",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "y"
+  },
+  "author": "Christian Braunagel",
+  "license": "ISC",
+  "dependencies": {
+    "node-fetch": "^3.2.6"
+  }
+}
