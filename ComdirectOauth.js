@@ -16,6 +16,13 @@ export class ComdirectOauth {
         this.sessionId = '550e8400e29b11d4a716446655440000'
         this.requestId = '146113250'
 
+        this.base_path = 'https://api.comdirect.de/api'
+
+        this.accessToken = null
+        this.authInfo = null
+        this.sessionBody = null
+        this.responseTan = null
+
         this.joinDetails()
     }
 
@@ -43,30 +50,121 @@ export class ComdirectOauth {
         return formBody
     }
 
-    // setTransactionHeader(){
-    //     let header = '';
-    //     header = 
-    // }
-
     async fetchToken(formBody){
-        console.log('test2')
-        await fetch('https://api.comdirect.de/oauth/token', {
-            method: 'POST',
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/x-www-form-urlencoded'
-            },
-            body: formBody
-        }).then(res => {
-            return res
-        })
-        //     console.log('test1')
-        //     const jsonContent = await res.json()
-        //     return jsonContent
-        // }).then(data => {
-        //     console.log(data)
-        //     return data
+
+        // return new Promise( (resolve, reject) => {
+
+            return fetch('https://api.comdirect.de/oauth/token', {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: formBody
+            })
+            .then(res => {
+                return res.json()
+            })
+            .then(data => {
+                let accessToken = data.access_token
+                return accessToken
+            })
+
         // })
 
+
+    }
+
+    async fetchSessionState(){
+
+        return fetch('https://api.comdirect.de/api/session/clients/' + this.client_id + '/v1/sessions', {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'Authorization': 'Bearer ' + this.accessToken,
+                'x-http-request-info': '{"clientRequestId":{"sessionId":"' + this.sessionId + '","requestId":"' + this.requestId + '"}}',
+                'Content-Type': 'application/json'
+            },
+        }).then(sessionState => {
+
+            return sessionState.json()
+        }).then(sessionRes => {
+
+            return sessionRes
+        })
+
+    }
+
+    async validateSession(sessionRes){
+
+        this.sessionBody = '{"identifier":"' + sessionRes[0].identifier + '","sessionTanActive":true,"activated2FA":true}'
+
+            return fetch(this.base_path + '/session/clients/' + this.client_id + '/v1/sessions/' + this.sessionId + '/validate', {
+                method: 'POST',
+                redirect: 'error',
+                headers: {
+                    'Accept': 'application/json',
+                    'Authorization': 'Bearer ' + this.accessToken,
+                    'x-http-request-info': '{"clientRequestId":{"sessionId":"' + this.sessionId + '","requestId":"' + this.requestId + '"}}',
+                    'Content-Type': 'application/json'
+                },
+                body: this.sessionBody
+            }).then(session => {
+                
+                this.authInfo = JSON.parse(session.headers.get('x-once-authentication-info'))
+            })
+
+    }
+
+    async fetchResponseTan(){
+
+        return fetch(this.base_path + '/session/clients/' + this.client_id + '/v1/sessions/' + this.sessionId, {
+            method: 'PATCH',
+            headers: {
+               'Accept': 'application/json',
+               'Authorization': 'Bearer ' + this.accessToken,
+               'x-http-request-info': '{"clientRequestId":{"sessionId":"' + this.sessionId + '","requestId":"' + this.requestId + '"}}',
+               'Content-Type': 'application/json',
+               'x-once-authentication-info': '{"id":"' + this.authInfo.id + '"}'
+            },
+            body: this.sessionBody
+          
+          }).then( responseTan => {
+
+            this.responseTan = responseTan
+          })
+    }
+
+    async postTanApproveManager(){
+
+        console.log('Response tan')
+
+        await this.fetchResponseTan()
+
+        console.log('Refresh token')
+
+        await this.fetchRefreshToken()
+    }
+
+    async fetchRefreshToken(){
+        
+        let formBody = "client_id=" + this.client_id + "&client_secret=" + this.client_secret + "&grant_type=cd_secondary&token=" + this.accessToken;
+
+        return fetch('https://api.comdirect.de/oauth/token', {
+            method: 'POST',
+            headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: formBody
+        }).then(finalAccess => {
+            
+            return finalAccess.json()
+        }).then( finalAccessJson => {
+
+            let refreshToken = finalAccessJson.refresh_token;
+
+            console.log("Refresh:" + refreshToken)
+        })
     }
 }
