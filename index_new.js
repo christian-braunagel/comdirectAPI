@@ -12,45 +12,43 @@ let sessionId = comdirectOauth.sessionId;
 let requestId = comdirectOauth.requestId;
 
 let formBody = comdirectOauth.createBody(details);
-console.log(formBody);
 
-console.log(comdirectOauth.client_id)
 
-//getToken(formBody)
+async function performCdOauth(){
 
-// async function getToken(formBody){
+    try{
+        console.log('1. Get token')
 
-//     let data = await accessFlow.fetchToken(formBody);
-//     console.log(data)
-// }
+        // Working now because function call returns a promise and not the access token
+        comdirectOauth.accessToken = await comdirectOauth.fetchToken(formBody)
 
-// fetch('https://api.comdirect.de/oauth/token', {
-//     method: 'POST',
-//     headers: {
-//         'Accept': 'application/json',
-//         'Content-Type': 'application/x-www-form-urlencoded'
-//     },
-//     body: formBody
-//     })
-//     .then(res => {
-//         return res.json()
-//     })
-//     .then(data => {
-//         let accessToken = data.access_token
+        console.log('2. Get session with ' + comdirectOauth.accessToken)
+    
+        let sessionRes = await comdirectOauth.fetchSessionState()
+        
+        console.log('3. Validate session')
 
-//         fetch('https://api.comdirect.de/api/session/clients/User_599C2931ACF1400F879317ED55311AB5/v1/sessions', {
-//             method: 'GET',
-//             headers: {
-//                 'Accept': 'application/json',
-//                 'Authorization': 'Bearer ' + accessToken,
-//                 'x-http-request-info': '{"clientRequestId":{"sessionId":"' + sessionId + '","requestId":"' + requestId + '"}}',
-//                 'Content-Type': 'application/json'
-//             },
-//         }).then(sessionState => {
-//             return sessionState.json()
-//         }).then(sessionRes => {
-//             //console.log(sessionRes[0])
+        await comdirectOauth.validateSession(sessionRes)
 
-//             let bodyContent = '{"identifier":"' + sessionRes[0].identifier + '","sessionTanActive":true,"activated2FA":true}'
-//         })
-//     })
+        // wait for approvement from app
+        const rl = readline.createInterface({
+            input: process.stdin,
+            output: process.stdout,
+        });
+
+        rl.question('Approved in app?', ans => {
+
+            comdirectOauth.postTanApproveManager()
+
+            rl.close()
+        })
+
+    }
+
+    catch(error){
+        console.log("Some error" + error)
+    }
+
+}
+
+performCdOauth()
